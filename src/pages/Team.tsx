@@ -132,28 +132,52 @@ const Team = () => {
     setMessage('');
 
     try {
-      // In a real application, you would send an invitation email
-      // For this demo, we'll create a temporary user entry
-      const tempUserId = crypto.randomUUID();
-      
-      const { error } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: tempUserId,
+      // First, create a user account using Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: inviteForm.email,
+        password: 'TempPassword123!', // In production, you'd generate a secure temporary password
+        options: {
+          data: {
             full_name: inviteForm.full_name,
             role: inviteForm.role
           }
-        ]);
+        }
+      });
 
-      if (error) throw error;
+      if (authError) {
+        // If user already exists, we'll create a profile entry with a mock ID for demo purposes
+        if (authError.message.includes('already registered')) {
+          // For demo purposes, create a profile with a generated UUID
+          // In production, you'd handle existing users differently
+          const mockUserId = crypto.randomUUID();
+          
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: mockUserId,
+                full_name: inviteForm.full_name,
+                role: inviteForm.role
+              }
+            ]);
 
-      setMessage(`Invitation sent to ${inviteForm.email} successfully!`);
+          if (profileError) throw profileError;
+          
+          setMessage(`Demo invitation created for ${inviteForm.email}! (User already exists in system)`);
+        } else {
+          throw authError;
+        }
+      } else {
+        // If user was created successfully, the profile should be created automatically via trigger
+        setMessage(`Invitation sent to ${inviteForm.email} successfully! They will receive an email to confirm their account.`);
+      }
+
       setInviteForm({ email: '', full_name: '', role: 'user' });
       setShowInviteDialog(false);
       await fetchTeamMembers();
     } catch (error: any) {
-      setMessage(`Error sending invitation: ${error.message}`);
+      console.error('Invitation error:', error);
+      setMessage(`Error sending invitation: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setInviteLoading(false);
     }
@@ -221,7 +245,7 @@ const Team = () => {
                   <DialogHeader>
                     <DialogTitle>Invite Team Member</DialogTitle>
                     <DialogDescription className="text-gray-400">
-                      Send an invitation to join your team
+                      Send an invitation to join your team. They will receive an email to set up their account.
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleInviteMember} className="space-y-4">
