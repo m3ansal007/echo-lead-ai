@@ -19,22 +19,43 @@ const Auth = () => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        // Check if user has a profile, if not redirect to complete setup
-        const { data: profile } = await supabase
+      if (session && event === 'SIGNED_IN') {
+        // Ensure profile exists and is valid
+        await ensureProfileExists(session.user.id);
+        
+        // Check if user has a valid profile
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
         
-        if (profile) {
+        if (profile && !error) {
           navigate('/');
+        } else {
+          setMessage('Profile setup incomplete. Please contact your administrator.');
+          await supabase.auth.signOut();
         }
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const ensureProfileExists = async (userId: string) => {
+    try {
+      // Call the database function to ensure profile exists
+      const { error } = await supabase.rpc('ensure_profile_exists', {
+        user_id: userId
+      });
+      
+      if (error) {
+        console.error('Error ensuring profile exists:', error);
+      }
+    } catch (error) {
+      console.error('Error in ensureProfileExists:', error);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +72,10 @@ const Auth = () => {
         if (error) throw error;
         
         if (data.user) {
-          // Verify user has a profile
+          // Ensure profile exists
+          await ensureProfileExists(data.user.id);
+          
+          // Verify user has a valid profile
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
@@ -64,10 +88,10 @@ const Auth = () => {
             return;
           }
           
-          navigate('/');
+          // Success - navigation will be handled by the auth state change listener
         }
       } else {
-        // For signup, we'll create a basic user account
+        // For signup, create user with metadata
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -82,8 +106,17 @@ const Auth = () => {
         if (error) throw error;
         
         if (data.user) {
-          setMessage('Account created! Please check your email for verification, then you can sign in.');
-          setIsLogin(true);
+          // Ensure profile is created
+          await ensureProfileExists(data.user.id);
+          
+          if (data.user.email_confirmed_at) {
+            // User is immediately confirmed, proceed to login
+            setMessage('Account created successfully! You can now sign in.');
+            setIsLogin(true);
+          } else {
+            setMessage('Account created! Please check your email for verification, then you can sign in.');
+            setIsLogin(true);
+          }
         }
       }
     } catch (error: any) {
