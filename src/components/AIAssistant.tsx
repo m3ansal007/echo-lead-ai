@@ -8,6 +8,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, Send, Plus, Users, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+interface Message {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  actions?: { label: string; action: string }[];
+}
+
 interface AIAssistantProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -15,7 +23,7 @@ interface AIAssistantProps {
 
 const AIAssistant = ({ isOpen, onToggle }: AIAssistantProps) => {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'assistant',
@@ -34,7 +42,7 @@ const AIAssistant = ({ isOpen, onToggle }: AIAssistantProps) => {
     if (!message.trim()) return;
 
     // Add user message
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
       content: message,
@@ -42,7 +50,7 @@ const AIAssistant = ({ isOpen, onToggle }: AIAssistantProps) => {
     };
 
     // Mock AI response
-    const aiResponse = {
+    const aiResponse: Message = {
       id: (Date.now() + 1).toString(),
       type: 'assistant',
       content: `I understand you want to "${message}". Here are some relevant actions you can take:`,

@@ -19,21 +19,21 @@ const Index = () => {
     id: '1',
     name: 'John Doe',
     email: 'john@company.com',
-    role: 'admin' // admin, sales_manager, sales_associate
+    role: 'admin' as const // admin, sales_manager, sales_associate
   };
 
   // Mock stats data
   const stats = [
-    { title: 'Total Leads', value: '2,547', change: '+12%', icon: Users, trend: 'up' },
-    { title: 'Hot Leads', value: '284', change: '+8%', icon: Plus, trend: 'up' },
-    { title: 'Converted', value: '156', change: '+23%', icon: Calendar, trend: 'up' },
-    { title: 'Revenue', value: '$45,890', change: '+15%', icon: Settings, trend: 'up' },
+    { title: 'Total Leads', value: '2,547', change: '+12%', icon: Users, trend: 'up' as const },
+    { title: 'Hot Leads', value: '284', change: '+8%', icon: Plus, trend: 'up' as const },
+    { title: 'Converted', value: '156', change: '+23%', icon: Calendar, trend: 'up' as const },
+    { title: 'Revenue', value: '$45,890', change: '+15%', icon: Settings, trend: 'up' as const },
   ];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onToggle={setSidebarOpen} userRole={currentUser.role} />
+        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} userRole={currentUser.role} />
         
         <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <Header 
