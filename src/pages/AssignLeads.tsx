@@ -65,7 +65,7 @@ const AssignLeads = () => {
   const fetchData = async () => {
     try {
       const [leadsResponse, profilesResponse] = await Promise.all([
-        (supabase as any)
+        supabase
           .from('leads')
           .select(`
             id,
@@ -74,12 +74,12 @@ const AssignLeads = () => {
             status,
             value,
             assigned_to,
-            profiles!leads_assigned_to_fkey (
+            profiles (
               full_name
             )
           `)
           .order('created_at', { ascending: false }),
-        (supabase as any)
+        supabase
           .from('profiles')
           .select('id, full_name, role')
           .order('full_name')
@@ -112,7 +112,7 @@ const AssignLeads = () => {
     setMessage('');
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('leads')
         .update({ assigned_to: selectedAssignee })
         .in('id', selectedLeads);

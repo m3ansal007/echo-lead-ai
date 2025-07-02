@@ -62,11 +62,11 @@ const Leads = () => {
 
   const fetchLeads = async () => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('leads')
         .select(`
           *,
-          profiles!leads_assigned_to_fkey (
+          profiles (
             full_name
           )
         `)
@@ -87,8 +87,8 @@ const Leads = () => {
     if (searchTerm) {
       filtered = filtered.filter(lead =>
         lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase())
+        lead.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
