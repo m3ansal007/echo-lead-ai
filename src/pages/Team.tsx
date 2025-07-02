@@ -62,7 +62,7 @@ const Team = () => {
   const fetchTeamMembers = async () => {
     try {
       // Fetch profiles with lead counts
-      const { data: profiles, error: profilesError } = await supabase
+      const { data: profiles, error: profilesError } = await (supabase as any)
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
@@ -71,13 +71,13 @@ const Team = () => {
 
       // Fetch lead counts for each member
       const membersWithStats = await Promise.all(
-        (profiles || []).map(async (member) => {
+        (profiles || []).map(async (member: any) => {
           const [leadsResponse, convertedResponse] = await Promise.all([
-            supabase
+            (supabase as any)
               .from('leads')
               .select('id')
               .eq('assigned_to', member.id),
-            supabase
+            (supabase as any)
               .from('leads')
               .select('id')
               .eq('assigned_to', member.id)

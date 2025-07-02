@@ -61,7 +61,7 @@ const AddLead = () => {
 
   const fetchProfiles = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('profiles')
         .select('id, full_name, role')
         .order('full_name');
@@ -98,7 +98,7 @@ const AddLead = () => {
         assigned_to: formData.assigned_to || null
       };
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('leads')
         .insert([leadData]);
 

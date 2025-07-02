@@ -63,7 +63,7 @@ const Leads = () => {
 
   const fetchLeads = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('leads')
         .select(`
           *,

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,7 +65,7 @@ const AssignLeads = () => {
   const fetchData = async () => {
     try {
       const [leadsResponse, profilesResponse] = await Promise.all([
-        supabase
+        (supabase as any)
           .from('leads')
           .select(`
             id,
@@ -80,7 +79,7 @@ const AssignLeads = () => {
             )
           `)
           .order('created_at', { ascending: false }),
-        supabase
+        (supabase as any)
           .from('profiles')
           .select('id, full_name, role')
           .order('full_name')
@@ -113,7 +112,7 @@ const AssignLeads = () => {
     setMessage('');
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('leads')
         .update({ assigned_to: selectedAssignee })
         .in('id', selectedLeads);

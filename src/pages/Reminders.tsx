@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,7 +74,7 @@ const Reminders = () => {
 
   const fetchReminders = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('reminders')
         .select(`
           *,
@@ -119,7 +118,7 @@ const Reminders = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('reminders')
         .insert([
           {
@@ -147,7 +146,7 @@ const Reminders = () => {
 
   const toggleComplete = async (reminderId: string, completed: boolean) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('reminders')
         .update({ completed: !completed })
         .eq('id', reminderId);
