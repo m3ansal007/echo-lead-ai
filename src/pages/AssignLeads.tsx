@@ -74,7 +74,7 @@ const AssignLeads = () => {
             status,
             value,
             assigned_to,
-            profiles:assigned_to (
+            profiles!leads_assigned_to_fkey (
               full_name
             )
           `)

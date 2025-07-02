@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,7 +66,7 @@ const Leads = () => {
         .from('leads')
         .select(`
           *,
-          profiles:assigned_to (
+          profiles!leads_assigned_to_fkey (
             full_name
           )
         `)
