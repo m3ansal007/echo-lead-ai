@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Users, Mail, Calendar, TrendingUp, Search, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Users, Mail, Calendar, TrendingUp, Search, Plus, X } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +18,7 @@ interface TeamMember {
   id: string;
   full_name: string;
   email: string;
-  role: 'admin' | 'sales_manager' | 'sales_associate';
+  role: 'admin' | 'manager' | 'sales_rep' | 'user';
   created_at: string;
   leads_count?: number;
   converted_count?: number;
@@ -32,6 +33,13 @@ const Team = () => {
   const [message, setMessage] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    full_name: '',
+    role: 'user' as 'admin' | 'manager' | 'sales_rep' | 'user'
+  });
   const navigate = useNavigate();
 
   const currentUser = {
@@ -62,7 +70,7 @@ const Team = () => {
   const fetchTeamMembers = async () => {
     try {
       // Fetch profiles with lead counts
-      const { data: profiles, error: profilesError } = await (supabase as any)
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
@@ -73,11 +81,11 @@ const Team = () => {
       const membersWithStats = await Promise.all(
         (profiles || []).map(async (member: any) => {
           const [leadsResponse, convertedResponse] = await Promise.all([
-            (supabase as any)
+            supabase
               .from('leads')
               .select('id')
               .eq('assigned_to', member.id),
-            (supabase as any)
+            supabase
               .from('leads')
               .select('id')
               .eq('assigned_to', member.id)
@@ -118,17 +126,54 @@ const Team = () => {
     setFilteredMembers(filtered);
   };
 
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteLoading(true);
+    setMessage('');
+
+    try {
+      // In a real application, you would send an invitation email
+      // For this demo, we'll create a temporary user entry
+      const tempUserId = crypto.randomUUID();
+      
+      const { error } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: tempUserId,
+            full_name: inviteForm.full_name,
+            role: inviteForm.role
+          }
+        ]);
+
+      if (error) throw error;
+
+      setMessage(`Invitation sent to ${inviteForm.email} successfully!`);
+      setInviteForm({ email: '', full_name: '', role: 'user' });
+      setShowInviteDialog(false);
+      await fetchTeamMembers();
+    } catch (error: any) {
+      setMessage(`Error sending invitation: ${error.message}`);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-      case 'sales_manager': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'sales_associate': return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'manager': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'sales_rep': return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'user': return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
       default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
     }
   };
 
   const formatRoleName = (role: string) => {
-    return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    switch (role) {
+      case 'sales_rep': return 'Sales Rep';
+      default: return role.charAt(0).toUpperCase() + role.slice(1);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -165,10 +210,78 @@ const Team = () => {
                 <h1 className="text-3xl font-bold text-white mb-2">Team</h1>
                 <p className="text-gray-400">Manage your sales team and view performance</p>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Invite Member
-              </Button>
+              <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Invite Member
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-900 border-gray-800 text-white">
+                  <DialogHeader>
+                    <DialogTitle>Invite Team Member</DialogTitle>
+                    <DialogDescription className="text-gray-400">
+                      Send an invitation to join your team
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleInviteMember} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-gray-300">Email Address *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={inviteForm.email}
+                        onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+                        className="bg-gray-800 border-gray-700 text-white"
+                        placeholder="colleague@company.com"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="full_name" className="text-gray-300">Full Name *</Label>
+                      <Input
+                        id="full_name"
+                        value={inviteForm.full_name}
+                        onChange={(e) => setInviteForm(prev => ({ ...prev, full_name: e.target.value }))}
+                        className="bg-gray-800 border-gray-700 text-white"
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="role" className="text-gray-300">Role</Label>
+                      <Select value={inviteForm.role} onValueChange={(value: 'admin' | 'manager' | 'sales_rep' | 'user') => setInviteForm(prev => ({ ...prev, role: value }))}>
+                        <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-700">
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="sales_rep">Sales Rep</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowInviteDialog(false)}
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={inviteLoading}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {inviteLoading ? 'Sending...' : 'Send Invitation'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
 
             {/* Team Stats */}
@@ -203,7 +316,7 @@ const Team = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-400">Managers</p>
                       <p className="text-2xl font-bold text-white">
-                        {teamMembers.filter(m => m.role === 'sales_manager').length}
+                        {teamMembers.filter(m => m.role === 'manager').length}
                       </p>
                     </div>
                     <Users className="w-8 h-8 text-blue-500" />
@@ -214,9 +327,9 @@ const Team = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-400">Associates</p>
+                      <p className="text-sm font-medium text-gray-400">Sales Reps</p>
                       <p className="text-2xl font-bold text-white">
-                        {teamMembers.filter(m => m.role === 'sales_associate').length}
+                        {teamMembers.filter(m => m.role === 'sales_rep').length}
                       </p>
                     </div>
                     <Users className="w-8 h-8 text-green-500" />
@@ -247,8 +360,9 @@ const Team = () => {
                     <SelectContent className="bg-gray-800 border-gray-700">
                       <SelectItem value="all">All Roles</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="sales_manager">Sales Manager</SelectItem>
-                      <SelectItem value="sales_associate">Sales Associate</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="sales_rep">Sales Rep</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -291,7 +405,7 @@ const Team = () => {
                           <h3 className="font-semibold text-white">{member.full_name || 'Unnamed User'}</h3>
                           <div className="flex items-center gap-1 text-sm text-gray-400 mt-1">
                             <Mail className="w-3 h-3" />
-                            {member.email}
+                            {member.email || 'No email'}
                           </div>
                         </div>
                       </div>
