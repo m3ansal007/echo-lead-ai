@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -46,8 +45,8 @@ const Auth = () => {
   const ensureProfileExists = async (userId: string) => {
     try {
       // Call the database function to ensure profile exists
-      const { error } = await supabase.rpc('ensure_profile_exists', {
-        user_id: userId as any
+      const { error } = await (supabase as any).rpc('ensure_profile_exists', {
+        user_id: userId
       });
       
       if (error) {
