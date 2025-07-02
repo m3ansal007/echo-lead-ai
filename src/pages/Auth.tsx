@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -19,9 +18,18 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        navigate('/');
+        // Check if user has a profile, if not redirect to complete setup
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          navigate('/');
+        }
       }
     });
 
@@ -35,24 +43,48 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
         if (error) throw error;
+        
+        if (data.user) {
+          // Verify user has a profile
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (profileError || !profile) {
+            setMessage('Profile not found. Please contact your administrator.');
+            await supabase.auth.signOut();
+            return;
+          }
+          
+          navigate('/');
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
+        // For signup, we'll create a basic user account
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: fullName,
+              role: 'sales_associate' // Default role for self-registration
             },
           },
         });
+        
         if (error) throw error;
-        setMessage('Check your email for the confirmation link!');
+        
+        if (data.user) {
+          setMessage('Account created! Please check your email for verification, then you can sign in.');
+          setIsLogin(true);
+        }
       }
     } catch (error: any) {
       setMessage(error.message);

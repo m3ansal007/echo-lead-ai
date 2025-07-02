@@ -34,6 +34,7 @@ const Team = () => {
   const [message, setMessage] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -44,13 +45,6 @@ const Team = () => {
     role: 'sales_associate' as 'admin' | 'sales_manager' | 'sales_associate'
   });
   const navigate = useNavigate();
-
-  const currentUser = {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@company.com',
-    role: 'admin' as const
-  };
 
   useEffect(() => {
     checkUser();
@@ -67,7 +61,17 @@ const Team = () => {
       navigate('/auth');
       return;
     }
+    
     setUser(session.user);
+    
+    // Fetch user profile to get role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    
+    setUserProfile(profile);
   };
 
   const fetchTeamMembers = async () => {
@@ -135,7 +139,7 @@ const Team = () => {
     setMessage('');
 
     try {
-      // Create a user account using Supabase Auth
+      // Create a user account using Supabase Auth Admin API
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: addForm.email,
         password: addForm.password,
@@ -152,27 +156,15 @@ const Team = () => {
         throw authError;
       }
 
-      // If user was created successfully, update the profile with additional info
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: addForm.full_name,
-            phone: addForm.phone,
-            role: addForm.role
-          })
-          .eq('id', authData.user.id);
-
-        if (profileError) {
-          console.error('Profile update error:', profileError);
-          // Don't throw here as the user was created successfully
-        }
-      }
-
       setMessage(`Member ${addForm.full_name} added successfully! They can now login with their email and password.`);
       setAddForm({ full_name: '', email: '', password: '', phone: '', role: 'sales_associate' });
       setShowAddDialog(false);
-      await fetchTeamMembers();
+      
+      // Wait a moment for the trigger to process, then refresh
+      setTimeout(() => {
+        fetchTeamMembers();
+      }, 1000);
+      
     } catch (error: any) {
       console.error('Add member error:', error);
       setMessage(`Error adding member: ${error.message || 'Unknown error occurred'}`);
@@ -213,11 +205,20 @@ const Team = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} userRole={currentUser.role} />
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onToggle={() => setSidebarOpen(!sidebarOpen)} 
+          userRole={userProfile?.role || 'sales_associate'} 
+        />
         
         <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <Header 
-            user={currentUser} 
+            user={{
+              id: user?.id || '',
+              name: userProfile?.full_name || user?.email || '',
+              email: user?.email || '',
+              role: userProfile?.role || 'sales_associate'
+            }} 
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             onToggleAI={() => {}}
           />
@@ -228,101 +229,103 @@ const Team = () => {
                 <h1 className="text-3xl font-bold text-white mb-2">Team</h1>
                 <p className="text-gray-400">Manage your sales team and view performance</p>
               </div>
-              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Add Team Member</DialogTitle>
-                    <DialogDescription className="text-gray-400">
-                      Create a new team member account. They will be able to login and be assigned leads.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleAddMember} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name" className="text-gray-300">Name *</Label>
-                      <Input
-                        id="full_name"
-                        value={addForm.full_name}
-                        onChange={(e) => setAddForm(prev => ({ ...prev, full_name: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white"
-                        placeholder="John Doe"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-gray-300">Email ID *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={addForm.email}
-                        onChange={(e) => setAddForm(prev => ({ ...prev, email: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white"
-                        placeholder="john@company.com"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-gray-300">Password *</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={addForm.password}
-                        onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white"
-                        placeholder="Enter password"
-                        minLength={6}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-gray-300">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={addForm.phone}
-                        onChange={(e) => setAddForm(prev => ({ ...prev, phone: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white"
-                        placeholder="+1-555-0123"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="role" className="text-gray-300">Role</Label>
-                      <Select value={addForm.role} onValueChange={(value: 'admin' | 'sales_manager' | 'sales_associate') => setAddForm(prev => ({ ...prev, role: value }))}>
-                        <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700">
-                          <SelectItem value="sales_associate">Sales Associate</SelectItem>
-                          <SelectItem value="sales_manager">Sales Manager</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <DialogFooter className="gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowAddDialog(false)}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={addLoading}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {addLoading ? 'Adding...' : 'Add'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              {(userProfile?.role === 'admin' || userProfile?.role === 'sales_manager') && (
+                <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Member
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add Team Member</DialogTitle>
+                      <DialogDescription className="text-gray-400">
+                        Create a new team member account. They will be able to login and be assigned leads.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddMember} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="full_name" className="text-gray-300">Name *</Label>
+                        <Input
+                          id="full_name"
+                          value={addForm.full_name}
+                          onChange={(e) => setAddForm(prev => ({ ...prev, full_name: e.target.value }))}
+                          className="bg-gray-800 border-gray-700 text-white"
+                          placeholder="John Doe"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-gray-300">Email ID *</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={addForm.email}
+                          onChange={(e) => setAddForm(prev => ({ ...prev, email: e.target.value }))}
+                          className="bg-gray-800 border-gray-700 text-white"
+                          placeholder="john@company.com"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password" className="text-gray-300">Password *</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={addForm.password}
+                          onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
+                          className="bg-gray-800 border-gray-700 text-white"
+                          placeholder="Enter password"
+                          minLength={6}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-gray-300">Phone Number</Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          value={addForm.phone}
+                          onChange={(e) => setAddForm(prev => ({ ...prev, phone: e.target.value }))}
+                          className="bg-gray-800 border-gray-700 text-white"
+                          placeholder="+1-555-0123"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="role" className="text-gray-300">Role</Label>
+                        <Select value={addForm.role} onValueChange={(value: 'admin' | 'sales_manager' | 'sales_associate') => setAddForm(prev => ({ ...prev, role: value }))}>
+                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectItem value="sales_associate">Sales Associate</SelectItem>
+                            <SelectItem value="sales_manager">Sales Manager</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <DialogFooter className="gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowAddDialog(false)}
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={addLoading}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          {addLoading ? 'Adding...' : 'Add'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
 
             {/* Team Stats */}
