@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,7 +60,7 @@ const AddLead = () => {
 
   const fetchProfiles = async () => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, role')
         .order('full_name');
@@ -98,7 +97,7 @@ const AddLead = () => {
         assigned_to: formData.assigned_to || null
       };
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('leads')
         .insert([leadData]);
 
