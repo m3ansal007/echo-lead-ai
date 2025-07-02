@@ -148,7 +148,7 @@ const Reminders = () => {
     try {
       const { error } = await (supabase as any)
         .from('reminders')
-        .update({ completed: !completed })
+        .update({ completed: !completed } as any)
         .eq('id', reminderId);
 
       if (error) throw error;
